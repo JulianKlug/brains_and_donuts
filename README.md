@@ -1,2 +1,2 @@
-# brains_and_donuts
+# Brains & Donuts
 Topological analysis of cerebral imaging in stroke
