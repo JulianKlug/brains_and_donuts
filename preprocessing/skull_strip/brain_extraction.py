@@ -1,24 +1,18 @@
 import os
 import subprocess
 
-main_dir = '/Users/julian/master/brain_and_donuts/data/'
-data_dir = os.path.join(main_dir, 'bet_test')
-
-study = 'DE_Angio_CT_075_Bv40_3_F_06_Perfusion_20160103102300_8.nii'
-spc = 'SPC_301mm_Std_Perfusion_20160103102300_11.nii'
-spc_path = os.path.join(data_dir, spc)
-
 def extract_brain(image_to_bet, no_contrast_anatomical, data_dir):
     output_path = os.path.join(data_dir, 'betted_' + image_to_bet)
 
     # Use robustfov (FSL) to get FOV on head only
     print('Setting FOV')
-    cropped_path = os.path.join(data_dir, 'cropped_' + study)
-    subprocess.run(['robustfov', '-i', study, '-r', cropped_path], cwd = data_dir)
+    cropped_path = os.path.join(data_dir, 'cropped_' + image_to_bet)
+    subprocess.run(['robustfov', '-i', image_to_bet, '-r', cropped_path], cwd = data_dir)
 
     print('Coregistering to', no_contrast_anatomical)
-    coreg_name = 'coreg_crp_' + study + '.gz'
+    coreg_name = 'coreg_crp_' + image_to_bet + '.gz'
     coreg_path = os.path.join(data_dir, coreg_name)
+    spc_path = os.path.join(data_dir, no_contrast_anatomical)
     subprocess.run([
         'flirt',
         '-in',  cropped_path,
@@ -27,7 +21,7 @@ def extract_brain(image_to_bet, no_contrast_anatomical, data_dir):
     ], cwd = data_dir)
 
     print('Removing skull of', no_contrast_anatomical)
-    skull_strip_path = os.path.join(os.getcwd(), 'skull_strip.sh')
+    skull_strip_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'skull_strip.sh')
     subprocess.run([skull_strip_path, '-i', no_contrast_anatomical], cwd = data_dir)
 
     print('Applying mask')
@@ -37,6 +31,3 @@ def extract_brain(image_to_bet, no_contrast_anatomical, data_dir):
     ], cwd = data_dir)
 
     print('Done with', image_to_bet)
-
-
-extract_brain(study, spc, data_dir)
