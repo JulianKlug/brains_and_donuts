@@ -15,3 +15,7 @@ Goal: extract artery tree
 
 ## Blood vessel segmentation - wrapper_vx_extraction.py
 1. Threshold masked image at 90 HU
+
+## Anonymisation - wrapper_anonymisation.py
+1. Export to numpy (thus loosing headers)
+2. Anonymise filenames and create id to patient name table

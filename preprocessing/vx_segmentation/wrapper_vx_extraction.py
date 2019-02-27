@@ -5,7 +5,7 @@ extract_vx_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'ext
 
 
 main_dir = '/Users/julian/master/brain_and_donuts/data/multi_subj'
-data_dir = os.path.join(main_dir, 'reorganised_test')
+data_dir = os.path.join(main_dir, 'reorganised_test1')
 
 # Find default Angio file, no MIP projection
 angio_start = 'DE_Angio_CT_075'
