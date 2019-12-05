@@ -25,7 +25,7 @@ def compute_persistance_entropy_matrix(input_dir, n_jobs=1):
         try:
             subject_input = np.asarray([np.asarray(np.where(ct_inputs[i] == 1)).T])
             subject_entropy = ent.fit_transform(subject_input)
-            entropy_df = entropy_df.append(pd.DataFrame([[ids[i], subject_entropy[0], subject_entropy[1], subject_entropy[2]]], columns=columns), ignore_index=True)
+            entropy_df = entropy_df.append(pd.DataFrame([[ids[i], subject_entropy[0][0], subject_entropy[0][1], subject_entropy[0][2]]], columns=columns), ignore_index=True)
         except Exception as e:
             tb = traceback.format_exc()
             print('Entropy calculation failed.')
