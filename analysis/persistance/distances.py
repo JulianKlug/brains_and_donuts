@@ -1,3 +1,4 @@
+import numpy as np
 from scipy.linalg import norm, eigh
 
 def dot(x, dir):

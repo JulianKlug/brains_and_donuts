@@ -8,7 +8,7 @@ def display(img_data, block = True):
         """ Function to display row of image slices """
         fig, axes = plt.subplots(1, len(slices))
         for i, slice in enumerate(slices):
-            axes[i].imshow(slice.T, cmap="gray", origin="lower")
+            axes[i].imshow(slice.T, cmap="plasma", origin="lower")
 
     n_i, n_j, n_k = img_data.shape
     center_i = (n_i - 1) // 2  # // for integer division
