@@ -1,0 +1,70 @@
+%% Initialize the workspace
+clear all;
+close all;
+clc;
+
+
+%% Load in persistence diagrams and case information (age,gender)
+
+data_path = '/Users/julian/stroke_research/brain_and_donuts/data/persistance_pipeline_data';
+load([data_path,'/d5/H0Persistance_d5.mat']);
+load([data_path,'/d5/H1Persistance_d5.mat']);
+Ages = load([data_path,'/age_array.mat']);
+Ages = Ages.age';
+Sexes = load([data_path,'/sex_array.mat']);
+Sexes = Sexes.sex';
+
+
+
+%% Add file paths for MarronMatlab7
+
+marronRoot = '/Users/julian/Documents/MATLAB/AllMatlab7Combined'; %% SET CORRECT DIRECTORY PATH TO SOFTWARE PACKAGE MENTIONED IN README.txt 
+addpath([marronRoot,'/BatchAdjust']);
+addpath([marronRoot,'/Smoothing']);
+addpath([marronRoot,'/General']);
+
+
+%% Run PCA representation of persistence diagrams
+
+PCARepresentation(H0PersistanceArray,Ages,Sexes,1,100);clc
+
+PCARepresentation(H1PersistanceArray,Ages,Sexes,1,100);clc
+
+%% Run infarct size analysis of persistence diagrams
+
+[H0_infarct_size_rho, H0_infarct_size_pval] = InfarctSizeAnalysis(H0PersistanceArray,InfarctSizes,Sexes,1,100);clc
+
+[H1_infarct_size_rho, H1_infarct_size_pval] = InfarctSizeAnalysis(H1PersistanceArray,InfarctSizes,Sexes,1,100);clc
+
+%% Run age analysis of persistence diagrams
+
+[H0_age_rho, H0_age_pval] = AgeAnalysis(H0PersistanceArray,Ages,Sexes,1,100);clc
+
+[H1_age_rho, H1_age_pval] = AgeAnalysis(H1PersistanceArray,Ages,Sexes,1,100);clc
+
+
+%% Run gender analysis of persistence diagrams
+
+[H0_sex_pval] = GenderAnalysis(H0PersistanceArray,Ages,Sexes,1,100);clc
+
+[H1_sex_pval] = GenderAnalysis(H1PersistanceArray,Ages,Sexes,1,100);clc
+
+
+%% Display results
+
+fprintf('Pearson Correlation of H0 Features vs Age:         %d\n',    H0_age_rho);
+fprintf('Pearson p-value of H0 Features vs Age:             %d\n\n',  H0_age_pval);
+
+fprintf('Pearson Correlation of H1 Features vs Age:         %d\n',    H1_age_rho);
+fprintf('Pearson p-value of H1 Features vs Age:             %d\n\n',  H1_age_pval);
+
+fprintf('Pearson Correlation of H0 Features vs Infarct Size:         %d\n',    H0_age_rho);
+fprintf('Pearson p-value of H0 Features vs Age:             %d\n\n',  H0_age_pval);
+
+fprintf('Pearson Correlation of H1 Features vs Age:         %d\n',    H1_age_rho);
+fprintf('Pearson p-value of H1 Features vs Age:             %d\n\n',  H1_age_pval);
+
+fprintf('Permutation Test p-value for Sex with H0 Features: %d\n\n',  H0_sex_pval); 
+
+fprintf('Permutation Test p-value for Sex with H1 Features: %d\n\n',  H1_sex_pval);
+

@@ -2,9 +2,10 @@ import traceback, os, argparse
 import data_loader as dl
 import numpy as np
 import pandas as pd
+import scipy.io as sio
 
 
-def compute_infarct_volume(input_dir):
+def compute_infarct_volume(input_dir, save_mat):
     clinical_inputs, ct_inputs, ct_lesion_GT, mri_inputs, mri_lesion_GT, brain_masks, ids, params = dl.load_structured_data(input_dir, 'data_set.npz')
 
     ct_lesion_GT = np.squeeze(ct_lesion_GT)
@@ -28,9 +29,14 @@ def compute_infarct_volume(input_dir):
 
         volume_df.to_excel(os.path.join(input_dir, 'infarct_volume_df.xlsx'))
 
+    if save_mat:
+        sio.savemat(os.path.join(input_dir, 'infarct_volumes.mat'), {'infarct_volume': volume_df['infarct_volume'].tolist()})
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Compute infarct volume per subject/image.')
     parser.add_argument('input_directory')
+    parser.add_argument('-m', '--matlab', action='store_true',
+                        help="saves also a .mat file")
     args = parser.parse_args()
-    compute_infarct_volume(args.input_directory)
+    compute_infarct_volume(args.input_directory, save_mat=args.matlab)
 
