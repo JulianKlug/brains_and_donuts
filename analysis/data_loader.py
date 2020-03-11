@@ -1,7 +1,6 @@
 import os
 import nibabel as nib
 import numpy as np
-import visual
 
 
 def load_structured_data(data_dir, filename = 'data_set.npz'):
