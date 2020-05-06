@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import auc
 import numpy as np
 
-def plot_roc(tprs, fprs, model_dir = None, model_name = None, save_plot = False, line_color = None, std_intensity = .2):
+def plot_roc(tprs, fprs, save_dir = None, model_name = None, save_plot = False, line_color = None, std_intensity = .2):
     """
     Plot ROC curves
 
@@ -58,7 +58,7 @@ def plot_roc(tprs, fprs, model_dir = None, model_name = None, save_plot = False,
     plt.legend(loc="lower right")
 
     if save_plot:
-        plt.savefig(os.path.join(model_dir, model_name.split('.')[0] + '_ROC.png'))
+        plt.savefig(os.path.join(save_dir, model_name + '_ROC.png'))
         plt.close()
     else:
         plt.ion()
