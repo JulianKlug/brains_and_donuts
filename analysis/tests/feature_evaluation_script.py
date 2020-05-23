@@ -1,4 +1,4 @@
-import sys, os, time
+import sys, os, time, pickle
 
 path_bnd = '../..'
 sys.path.insert(1, path_bnd)
@@ -17,13 +17,20 @@ from analysis.utils.metrics import dice, roc_auc
 from analysis.utils.dataset_visualization import visualize_dataset
 
 ## Import data
-data_dir = '/Users/julian/stroke_research/brain_and_donuts/full_datasets'
-save_dir = '/Users/julian/temp/bnd_pipe_test'
-data_set_name = 'withAngio_all_2016_2017.npz'
-model_name = 'CubicalPersistance_With_PersistenceEntropy_And_WassersteinAmplitude'
+data_dir = '/home/klug/data/working_data/withAngio_all_2016_2017'
+save_dir = '/home/klug/output/bnd/feature_eval'
+data_set_name = 'data_set.npz'
+model_name = 'CP_With_PE_WA_run2'
+
+n_images = 30
+n_threads = 100
+subsampling_factor = 2
 
 if not os.path.exists(save_dir):
     os.mkdir(save_dir)
+pickle_dir = os.path.join(save_dir, 'pickled_data')
+if not os.path.exists(pickle_dir):
+    os.mkdir(pickle_dir)
 
 clinical_inputs, ct_inputs, ct_lesion_GT, mri_inputs, mri_lesion_GT, brain_masks, ids, params = \
     dl.load_structured_data(data_dir, data_set_name)
@@ -31,19 +38,26 @@ clinical_inputs, ct_inputs, ct_lesion_GT, mri_inputs, mri_lesion_GT, brain_masks
 # Reshape ct_inputs as it has 1 channel
 ct_inputs = ct_inputs.reshape((*ct_inputs.shape[:-1]))
 
-n_images = 1
-X = (ct_inputs[:n_images] * brain_masks[:n_images])[range(n_images), ::2, ::2, ::2]
-y = (ct_lesion_GT[:n_images] * brain_masks[:n_images])[range(n_images), ::2, ::2, ::2]
+X = (ct_inputs[:n_images] * brain_masks[:n_images])[range(n_images), ::subsampling_factor, ::subsampling_factor, ::subsampling_factor]
+y = (ct_lesion_GT[:n_images] * brain_masks[:n_images])[range(n_images), ::subsampling_factor, ::subsampling_factor, ::subsampling_factor]
+
+## Todo evaluate normalisation
 
 ## Feature Creation
-width_list = [[5, 5, 5], [7, 7, 7]]
+width_list = [[7, 7, 7], [9, 9, 9], [11, 11, 11]]
+n_widths = len(width_list)
 start = time.time()
 # Note that padding should be same so that output images always have the same size
-transformer = make_pipeline(CubicalPersistence(homology_dimensions=(0, 1 ,2), n_jobs=1), Filtering(epsilon=np.max(X)-1, below=False), Scaler(),
-                             make_union(PersistenceEntropy(n_jobs=1),
-                                         Amplitude(metric='wasserstein', metric_params={'p':2}, order=None, n_jobs=1)))
+feature_transformers = [
+                            PersistenceEntropy(n_jobs=1),
+                            Amplitude(metric='wasserstein', metric_params={'p':2}, order=None, n_jobs=1)
+                            ## TODO add number of points
+                        ]
+n_subimage_features = len(feature_transformers)
+transformer = make_pipeline(CubicalPersistence(homology_dimensions=(0, 1 ,2), n_jobs=n_threads/n_widths), Filtering(epsilon=np.max(X)-1, below=False), Scaler(),
+                             make_union(*feature_transformers, n_jobs=(n_threads/n_widths)/n_subimage_features))
 rsis = make_image_union(*[RollingSubImageTransformer(transformer=transformer, width=width, padding='same')
-                    for width in width_list], n_jobs=1)
+                    for width in width_list], n_jobs=n_widths)
 X_features = rsis.fit_transform(X)
 end = time.time()
 feature_creation_timing = end - start
@@ -62,27 +76,46 @@ X_train, X_test, y_train, y_test = train_test_split(X_flat, y_flat, test_size=0.
 X_train, y_train = X_train.reshape(-1, n_features), y_train.reshape(-1)
 X_test, y_test = X_test.reshape(-1, n_features), y_test.reshape(-1)
 
+## save data
+pickle.dump(X_train, open(os.path.join(pickle_dir, 'X_train.p'), 'wb'))
+pickle.dump(X_test, open(os.path.join(pickle_dir, 'X_test.p'), 'wb'))
+pickle.dump(y_train, open(os.path.join(pickle_dir, 'y_train.p'), 'wb'))
+pickle.dump(y_test, open(os.path.join(pickle_dir, 'y_test.p'), 'wb'))
+
 #### Train classifier
 classifier.fit(X_train, y_train)
 
+### save classifier
+pickle.dump(classifier, open(os.path.join(pickle_dir, 'trained_classifier.p'), 'wb'))
+
 #### Apply classifier
-probas = classifier.predict_proba(X_test)
-predicted = classifier.predict(X_test)
+test_probas = classifier.predict_proba(X_test)
+test_predicted = classifier.predict(X_test)
+
+train_probas = classifier.predict_proba(X_train)
+train_predicted = classifier.predict(X_train)
+
+### save predicted output
+pickle.dump(test_probas, open(os.path.join(pickle_dir, 'test_probas.p'), 'wb'))
+pickle.dump(test_predicted, open(os.path.join(pickle_dir, 'test_predicted.p'), 'wb'))
+
+pickle.dump(train_probas, open(os.path.join(pickle_dir, 'train_probas.p'), 'wb'))
+pickle.dump(train_predicted, open(os.path.join(pickle_dir, 'train_predicted.p'), 'wb'))
 
 #### Reconstruct output
-probas_3D = probas.reshape(-1, n_x, n_y, n_z, 2)
-predicted_3D = predicted.reshape(-1, n_x, n_y, n_z)
+probas_3D = test_probas.reshape(-1, n_x, n_y, n_z, 2)
+predicted_3D = test_predicted.reshape(-1, n_x, n_y, n_z)
 end = time.time()
 feature_classification_and_prediction_time = end - start
 
 ## Model (Features + Classifier) Evaluation
-dice_score = dice(predicted.flatten(), y_test.flatten())
-roc_auc_score, roc_curve_details = roc_auc(y_test, predicted)
+dice_score = dice(test_predicted.flatten(), y_test.flatten())
+roc_auc_score, roc_curve_details = roc_auc(y_test, test_predicted)
 
 print('Dice:', dice_score)
 print('ROC AUC:', roc_auc_score)
 
-with open(os.path.join(save_dir, 'logs.txt', "a")) as log_file:
+with open(os.path.join(save_dir, 'logs.txt'), "a") as log_file:
     log_file.write('Dice: %s\n' % dice_score)
     log_file.write('ROC AUC: %s\n' % roc_auc_score)
     log_file.write('Feature Creation timing: %s\n' % feature_creation_timing)
@@ -94,7 +127,7 @@ plot_roc([tpr], [fpr], save_dir=save_dir, save_plot=True, model_name=model_name)
 
 ## Model feature analysis
 #### Model confusion matrix
-confusion = confusion_matrix(y_test, predicted)
+confusion = confusion_matrix(y_test, test_predicted)
 plt.imshow(confusion)
 plt.savefig(os.path.join(save_dir, model_name + '_confusion_matrix.png'))
 #### Feature correalation
