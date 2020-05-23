@@ -54,13 +54,14 @@ feature_transformers = [
                             ## TODO add number of points
                         ]
 n_subimage_features = len(feature_transformers)
-transformer = make_pipeline(CubicalPersistence(homology_dimensions=(0, 1 ,2), n_jobs=n_threads/n_widths), Filtering(epsilon=np.max(X)-1, below=False), Scaler(),
-                             make_union(*feature_transformers, n_jobs=(n_threads/n_widths)/n_subimage_features))
+transformer = make_pipeline(CubicalPersistence(homology_dimensions=(0, 1 ,2), n_jobs=int(n_threads/n_widths)), Filtering(epsilon=np.max(X)-1, below=False), Scaler(),
+                             make_union(*feature_transformers, n_jobs=int((n_threads/n_widths)/n_subimage_features)))
 rsis = make_image_union(*[RollingSubImageTransformer(transformer=transformer, width=width, padding='same')
                     for width in width_list], n_jobs=n_widths)
 X_features = rsis.fit_transform(X)
 end = time.time()
 feature_creation_timing = end - start
+print(f'Features ready after {feature_creation_timing}s')
 
 ## Feature Classification
 #### Create classifier
