@@ -17,10 +17,10 @@ from analysis.utils.metrics import dice, roc_auc
 from analysis.utils.dataset_visualization import visualize_dataset
 
 ## Import data
-data_dir = '/home/klug/data/working_data/withAngio_all_2016_2017'
+data_dir = '/media/miplab-nas2/Data/klug/geneva_stroke_dataset/working_data/withAngio_all_2016_2017'
 save_dir = '/home/klug/output/bnd/feature_eval'
 data_set_name = 'data_set.npz'
-model_name = 'CP_With_PE_WA_run2'
+model_name = 'CP_With_PE_WA_NP'
 
 n_images = 30
 n_threads = 100
@@ -45,7 +45,8 @@ y = (ct_lesion_GT[:n_images] * brain_masks[:n_images])[range(n_images), ::subsam
 
 ## Feature Creation
 width_list = [[7, 7, 7], [9, 9, 9], [11, 11, 11]]
-n_widths = len(width_list)
+# n_widths = len(width_list) TODO verify sklearn jobs
+n_widths = 1
 start = time.time()
 # Note that padding should be same so that output images always have the same size
 feature_transformers = [
@@ -57,7 +58,7 @@ n_subimage_features = len(feature_transformers)
 transformer = make_pipeline(CubicalPersistence(homology_dimensions=(0, 1 ,2), n_jobs=int(n_threads/n_widths)), Filtering(epsilon=np.max(X)-1, below=False), Scaler(),
                              make_union(*feature_transformers, n_jobs=int((n_threads/n_widths)/n_subimage_features)))
 rsis = make_image_union(*[RollingSubImageTransformer(transformer=transformer, width=width, padding='same')
-                    for width in width_list], n_jobs=n_widths)
+                    for width in width_list], n_jobs=None)
 X_features = rsis.fit_transform(X)
 end = time.time()
 feature_creation_timing = end - start
