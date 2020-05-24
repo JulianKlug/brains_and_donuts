@@ -6,7 +6,7 @@ import analysis.data_loader as dl
 import numpy as np
 import matplotlib.pyplot as plt
 from gtda.homology import CubicalPersistence
-from pgtda.diagrams import PersistenceEntropy, Amplitude, Filtering, Scaler
+from pgtda.diagrams import PersistenceEntropy, Amplitude, Filtering, Scaler, NumberOfPoints
 from sklearn.pipeline import Pipeline, make_pipeline, FeatureUnion, make_union
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
@@ -50,8 +50,8 @@ start = time.time()
 # Note that padding should be same so that output images always have the same size
 feature_transformers = [
                             PersistenceEntropy(n_jobs=1),
-                            Amplitude(metric='wasserstein', metric_params={'p':2}, order=None, n_jobs=1)
-                            ## TODO add number of points
+                            Amplitude(metric='wasserstein', metric_params={'p':2}, order=None, n_jobs=1),
+                            NumberOfPoints(n_jobs=1)
                         ]
 n_subimage_features = len(feature_transformers)
 transformer = make_pipeline(CubicalPersistence(homology_dimensions=(0, 1 ,2), n_jobs=int(n_threads/n_widths)), Filtering(epsilon=np.max(X)-1, below=False), Scaler(),
