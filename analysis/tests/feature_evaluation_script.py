@@ -34,6 +34,10 @@ if not os.path.exists(pickle_dir):
 
 clinical_inputs, ct_inputs, ct_lesion_GT, mri_inputs, mri_lesion_GT, brain_masks, ids, params = \
     dl.load_structured_data(data_dir, data_set_name)
+    
+# Normalise data
+for i in range(len(ct_inputs)):
+    ct_inputs[i] = (ct_inputs[i] - np.mean(ct_inputs[i].flatten())) / np.std(ct_inputs[i].flatten())
 
 # Reshape ct_inputs as it has 1 channel
 ct_inputs = ct_inputs.reshape((*ct_inputs.shape[:-1]))
