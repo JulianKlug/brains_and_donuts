@@ -4,6 +4,7 @@ path_bnd = '../..'
 sys.path.insert(1, path_bnd)
 import analysis.data_loader as dl
 import numpy as np
+from tqdm import tqdm
 import matplotlib.pyplot as plt
 from gtda.homology import CubicalPersistence
 from pgtda.diagrams import PersistenceEntropy, Amplitude, Filtering, Scaler, NumberOfPoints
@@ -25,6 +26,7 @@ model_name = 'CP_With_PE_WA_NP'
 n_images = 30
 n_threads = 100
 subsampling_factor = 2
+batch_size = 10
 
 if not os.path.exists(save_dir):
     os.mkdir(save_dir)
@@ -63,7 +65,15 @@ transformer = make_pipeline(CubicalPersistence(homology_dimensions=(0, 1 ,2), n_
                              make_union(*feature_transformers, n_jobs=int((n_threads/n_widths)/n_subimage_features)))
 rsis = make_image_union(*[RollingSubImageTransformer(transformer=transformer, width=width, padding='same')
                     for width in width_list], n_jobs=None)
-X_features = rsis.fit_transform(X)
+
+# Batch decomposition to spare memory
+X_features_batches = []
+for batch_offset in tqdm(range(0, X.shape[0], batch_size)):
+    batch = X[batch_offset:batch_size]
+    batch_features = rsis.fit_transform(batch)
+    X_features_batches.append(batch_features)
+
+X_features = np.concatenate(X_features_batches, axis=0)
 end = time.time()
 feature_creation_timing = end - start
 print(f'Features ready after {feature_creation_timing}s')
