@@ -47,8 +47,6 @@ ct_inputs = ct_inputs.reshape((*ct_inputs.shape[:-1]))
 X = (ct_inputs[:n_images] * brain_masks[:n_images])[range(n_images), ::subsampling_factor, ::subsampling_factor, ::subsampling_factor]
 y = (ct_lesion_GT[:n_images] * brain_masks[:n_images])[range(n_images), ::subsampling_factor, ::subsampling_factor, ::subsampling_factor]
 
-## Todo evaluate normalisation
-
 ## Feature Creation
 width_list = [[7, 7, 7], [9, 9, 9], [11, 11, 11]]
 # n_widths = len(width_list) TODO verify sklearn jobs
@@ -69,7 +67,7 @@ rsis = make_image_union(*[RollingSubImageTransformer(transformer=transformer, wi
 # Batch decomposition to spare memory
 X_features_batches = []
 for batch_offset in tqdm(range(0, X.shape[0], batch_size)):
-    batch = X[batch_offset:batch_size]
+    batch = X[batch_offset:batch_offset+batch_size]
     batch_features = rsis.fit_transform(batch)
     X_features_batches.append(batch_features)
 
