@@ -125,21 +125,29 @@ end = time.time()
 feature_classification_and_prediction_time = end - start
 
 ## Model (Features + Classifier) Evaluation
-dice_score = dice(test_predicted.flatten(), y_test.flatten())
-roc_auc_score, roc_curve_details = roc_auc(y_test, test_predicted)
+test_dice_score = dice(test_predicted.flatten(), y_test.flatten())
+test_roc_auc_score, test_roc_curve_details = roc_auc(y_test, test_predicted)
+train_dice_score = dice(train_predicted.flatten(), y_train.flatten())
+train_roc_auc_score, train_roc_curve_details = roc_auc(y_train, train_predicted)
 
-print('Dice:', dice_score)
-print('ROC AUC:', roc_auc_score)
+print('Train Dice:', train_dice_score)
+print('Train ROC AUC:', train_roc_auc_score)
+print('Test Dice:', test_dice_score)
+print('Test ROC AUC:', test_roc_auc_score)
 
 with open(os.path.join(save_dir, 'logs.txt'), "a") as log_file:
-    log_file.write('Dice: %s\n' % dice_score)
-    log_file.write('ROC AUC: %s\n' % roc_auc_score)
+    log_file.write('Train Dice: %s\n' % train_dice_score)
+    log_file.write('Train ROC AUC: %s\n' % train_roc_auc_score)
+    log_file.write('Test Dice: %s\n' % test_dice_score)
+    log_file.write('Test ROC AUC: %s\n' % test_roc_auc_score)
     log_file.write('Feature Creation timing: %s\n' % feature_creation_timing)
     log_file.write('Feature Classification and Prediction timing: %s\n' % feature_classification_and_prediction_time)
 
 # %%
-fpr, tpr, roc_thresholds = roc_curve_details
-plot_roc([tpr], [fpr], save_dir=save_dir, save_plot=True, model_name=model_name)
+test_fpr, test_tpr, roc_thresholds = test_roc_curve_details
+plot_roc([test_tpr], [test_fpr], save_dir=save_dir, save_plot=True, model_name='test_' + model_name)
+train_fpr, train_tpr, roc_thresholds = train_roc_curve_details
+plot_roc([train_tpr], [train_fpr], save_dir=save_dir, save_plot=True, model_name='train_' + model_name)
 
 ## Model feature analysis
 #### Model confusion matrix
