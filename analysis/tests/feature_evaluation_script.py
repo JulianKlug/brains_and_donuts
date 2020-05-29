@@ -11,6 +11,7 @@ from pgtda.diagrams import PersistenceEntropy, Amplitude, Filtering, Scaler, Num
 from sklearn.pipeline import Pipeline, make_pipeline, FeatureUnion, make_union
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
+from sklearn import linear_model
 from sklearn.metrics import confusion_matrix
 from pgtda.images import RollingSubImageTransformer, make_image_union
 from analysis.utils.plot_ROC import plot_roc
@@ -79,7 +80,8 @@ print(f'Features ready after {feature_creation_timing}s')
 ## Feature Classification
 #### Create classifier
 start = time.time()
-classifier = RandomForestClassifier(n_estimators=10000, n_jobs=-1)
+# classifier = RandomForestClassifier(n_estimators=10000, n_jobs=-1)
+classifier = linear_model.LogisticRegression(max_iter=10000, n_jobs=-1)
 #### Prepare dataset
 
 n_images, n_x, n_y, n_z, n_features = X_features.shape
