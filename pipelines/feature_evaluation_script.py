@@ -59,9 +59,6 @@ X[X < vmin] = vmin
 X[X > vmax] = vmax
 
 # Todo to reevaluate relevance of std normalisation
-# for i in range(len(ct_inputs)):
-#     ct_inputs[i] = (ct_inputs[i] - np.mean(ct_inputs[i].flatten())) / np.std(ct_inputs[i].flatten())
-
 
 ## Feature Creation
 width_list = [[7, 7, 7], [9, 9, 9], [11, 11, 11], [13, 13, 13]]
