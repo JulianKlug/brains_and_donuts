@@ -2,7 +2,7 @@ import sys, os, time, pickle
 
 path_bnd = '../..'
 sys.path.insert(1, path_bnd)
-import analysis.data_loader as dl
+import analysis_tools.data_loader as dl
 import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
@@ -13,9 +13,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import confusion_matrix
 from pgtda.images import RollingSubImageTransformer, make_image_union
-from analysis.utils.plot_ROC import plot_roc
-from analysis.utils.metrics import dice, roc_auc
-from analysis.utils.dataset_visualization import visualize_dataset
+from analysis_tools.metrics.plot_ROC import plot_roc
+from analysis_tools.metrics.metrics import dice, roc_auc
+from visual_tools.dataset_visualization import visualize_dataset
 
 ## Import data
 data_dir = '/media/miplab-nas2/Data/klug/geneva_stroke_dataset/working_data/withAngio_all_2016_2017'
