@@ -11,7 +11,6 @@ from pgtda.diagrams import PersistenceEntropy, Amplitude, Filtering, Scaler, Num
 from sklearn.pipeline import Pipeline, make_pipeline, FeatureUnion, make_union
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn import linear_model
 from sklearn.metrics import confusion_matrix
 from pgtda.images import RollingSubImageTransformer, make_image_union
 from analysis.utils.plot_ROC import plot_roc
@@ -22,34 +21,50 @@ from analysis.utils.dataset_visualization import visualize_dataset
 data_dir = '/media/miplab-nas2/Data/klug/geneva_stroke_dataset/working_data/withAngio_all_2016_2017'
 save_dir = '/home/klug/output/bnd/feature_eval'
 data_set_name = 'data_set.npz'
-model_name = 'CP_With_PE_WA_NP'
+experiment_name = 'capped_data_CP_With_PE_WA_NP'
 
 n_images = 30
 n_threads = 100
 subsampling_factor = 2
 batch_size = 10
 
+# Create necessary directories to save data
 if not os.path.exists(save_dir):
     os.mkdir(save_dir)
-pickle_dir = os.path.join(save_dir, 'pickled_data')
+experiment_save_dir = os.path.join(save_dir, experiment_name)
+if not os.path.exists(experiment_save_dir):
+    os.mkdir(experiment_save_dir)
+else:
+    os.mkdir(f'{experiment_save_dir}_{time.strftime("%Y%m%d_%H%M%S")}')
+pickle_dir = os.path.join(experiment_save_dir, 'pickled_data')
 if not os.path.exists(pickle_dir):
     os.mkdir(pickle_dir)
 
+# Load data
 clinical_inputs, ct_inputs, ct_lesion_GT, mri_inputs, mri_lesion_GT, brain_masks, ids, params = \
     dl.load_structured_data(data_dir, data_set_name)
-    
-# Normalise data
-for i in range(len(ct_inputs)):
-    ct_inputs[i] = (ct_inputs[i] - np.mean(ct_inputs[i].flatten())) / np.std(ct_inputs[i].flatten())
 
 # Reshape ct_inputs as it has 1 channel
 ct_inputs = ct_inputs.reshape((*ct_inputs.shape[:-1]))
 
+# Apply brain masks
 X = (ct_inputs[:n_images] * brain_masks[:n_images])[range(n_images), ::subsampling_factor, ::subsampling_factor, ::subsampling_factor]
 y = (ct_lesion_GT[:n_images] * brain_masks[:n_images])[range(n_images), ::subsampling_factor, ::subsampling_factor, ::subsampling_factor]
 
+# Normalise data
+# Capping (threshold to 0-500 as values outside this range seem non relevant to the vascular analysis)
+vmin = 0
+vmax = 500
+X[X < vmin] = vmin
+X[X > vmax] = vmax
+
+# Todo to reevaluate relevance of std normalisation
+# for i in range(len(ct_inputs)):
+#     ct_inputs[i] = (ct_inputs[i] - np.mean(ct_inputs[i].flatten())) / np.std(ct_inputs[i].flatten())
+
+
 ## Feature Creation
-width_list = [[7, 7, 7], [9, 9, 9], [11, 11, 11]]
+width_list = [[7, 7, 7], [9, 9, 9], [11, 11, 11], [13, 13, 13]]
 # n_widths = len(width_list) TODO verify sklearn jobs
 n_widths = 1
 start = time.time()
@@ -80,8 +95,7 @@ print(f'Features ready after {feature_creation_timing}s')
 ## Feature Classification
 #### Create classifier
 start = time.time()
-# classifier = RandomForestClassifier(n_estimators=10000, n_jobs=-1)
-classifier = linear_model.LogisticRegression(max_iter=10000, n_jobs=-1)
+classifier = RandomForestClassifier(n_estimators=10000, n_jobs=-1)
 #### Prepare dataset
 
 n_images, n_x, n_y, n_z, n_features = X_features.shape
@@ -135,7 +149,7 @@ print('Train ROC AUC:', train_roc_auc_score)
 print('Test Dice:', test_dice_score)
 print('Test ROC AUC:', test_roc_auc_score)
 
-with open(os.path.join(save_dir, 'logs.txt'), "a") as log_file:
+with open(os.path.join(experiment_save_dir, 'logs.txt'), "a") as log_file:
     log_file.write('Train Dice: %s\n' % train_dice_score)
     log_file.write('Train ROC AUC: %s\n' % train_roc_auc_score)
     log_file.write('Test Dice: %s\n' % test_dice_score)
@@ -145,22 +159,22 @@ with open(os.path.join(save_dir, 'logs.txt'), "a") as log_file:
 
 # %%
 test_fpr, test_tpr, roc_thresholds = test_roc_curve_details
-plot_roc([test_tpr], [test_fpr], save_dir=save_dir, save_plot=True, model_name='test_' + model_name)
+plot_roc([test_tpr], [test_fpr], experiment_save_dir=experiment_save_dir, save_plot=True, model_name='test_' + experiment_name)
 train_fpr, train_tpr, roc_thresholds = train_roc_curve_details
-plot_roc([train_tpr], [train_fpr], save_dir=save_dir, save_plot=True, model_name='train_' + model_name)
+plot_roc([train_tpr], [train_fpr], experiment_save_dir=experiment_save_dir, save_plot=True, model_name='train_' + experiment_name)
 
 ## Model feature analysis
 #### Model confusion matrix
 confusion = confusion_matrix(y_test, test_predicted)
 plt.imshow(confusion)
-plt.savefig(os.path.join(save_dir, model_name + '_confusion_matrix.png'))
+plt.savefig(os.path.join(experiment_save_dir, experiment_name + '_confusion_matrix.png'))
 #### Feature correalation
 correlation = np.abs(np.corrcoef(X_train.T))
 plt.imshow(correlation)
-plt.savefig(os.path.join(save_dir, model_name + '_correlation_matrix.png'))
+plt.savefig(os.path.join(experiment_save_dir, experiment_name + '_correlation_matrix.png'))
 
 ## Plot test outputs and GT
 output_dataset = np.concatenate((probas_3D, y_test.reshape(-1, n_x, n_y, n_z, 1)), axis=-1)
 channel_names = ['0', '1', 'GT']
-visualize_dataset(output_dataset, channel_names, save_dir, subject_ids=None, save_name='output_visualisation')
+visualize_dataset(output_dataset, channel_names, experiment_save_dir, subject_ids=None, save_name='output_visualisation')
 
