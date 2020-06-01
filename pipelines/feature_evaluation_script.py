@@ -24,7 +24,7 @@ data_set_name = 'data_set.npz'
 experiment_name = 'capped_data_CP_With_PE_WA_NP'
 
 n_images = 30
-n_threads = 100
+n_threads = 50
 subsampling_factor = 2
 batch_size = 10
 
@@ -78,13 +78,15 @@ rsis = make_image_union(*[RollingSubImageTransformer(transformer=transformer, wi
                     for width in width_list], n_jobs=None)
 
 # Batch decomposition to spare memory
-X_features_batches = []
+X_features = None
 for batch_offset in tqdm(range(0, X.shape[0], batch_size)):
     batch = X[batch_offset:batch_offset+batch_size]
     batch_features = rsis.fit_transform(batch)
-    X_features_batches.append(batch_features)
+    if X_features is None:
+        X_features = batch_features
+    else:
+        X_features = np.concatenate((X_features, batch_features), axis=0)
 
-X_features = np.concatenate(X_features_batches, axis=0)
 end = time.time()
 feature_creation_timing = end - start
 print(f'Features ready after {feature_creation_timing}s')
