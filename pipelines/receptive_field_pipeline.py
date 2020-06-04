@@ -68,6 +68,8 @@ X_features = None
 for batch_offset in tqdm(range(0, X.shape[0], batch_size)):
     batch = X[batch_offset:batch_offset+batch_size]
     batch_features = rsis.fit_transform(batch)
+    n_i, n_x, n_y, n_z = batch_features.shape[0:4]
+    batch_features = batch_features.reshape(n_i, n_x, n_y, n_z, -1)
     if X_features is None:
         X_features = batch_features
     else:
