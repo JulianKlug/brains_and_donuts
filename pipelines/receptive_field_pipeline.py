@@ -20,9 +20,9 @@ save_dir = '/home/klug/output/bnd/feature_eval'
 data_set_name = 'data_set.npz'
 experiment_name = 'rf_base_w5'
 
-n_images = 30
+n_images = 113
 n_threads = 50
-subsampling_factor = 2
+subsampling_factor = 1
 batch_size = 10
 
 # Create necessary directories to save data
@@ -57,7 +57,7 @@ X[X > vmax] = vmax
 
 
 ## Feature Creation
-width = [5, 5, 5]
+width = [7, 7, 7]
 n_widths = 1
 start = time.time()
 # Note that padding should be same so that output images always have the same size
@@ -82,7 +82,7 @@ print(f'Features ready after {feature_creation_timing}s')
 ## Feature Classification
 #### Create classifier
 start = time.time()
-classifier = RandomForestClassifier(n_estimators=10000, n_jobs=-1)
+classifier = RandomForestClassifier(n_estimators=100, n_jobs=n_threads)
 #### Prepare dataset
 
 n_images, n_x, n_y, n_z, n_features = X_features.shape
@@ -146,9 +146,9 @@ with open(os.path.join(experiment_save_dir, 'logs.txt'), "a") as log_file:
 
 # %%
 test_fpr, test_tpr, roc_thresholds = test_roc_curve_details
-plot_roc([test_tpr], [test_fpr], experiment_save_dir=experiment_save_dir, save_plot=True, model_name='test_' + experiment_name)
+plot_roc([test_tpr], [test_fpr], save_dir=experiment_save_dir, save_plot=True, model_name='test_' + experiment_name)
 train_fpr, train_tpr, roc_thresholds = train_roc_curve_details
-plot_roc([train_tpr], [train_fpr], experiment_save_dir=experiment_save_dir, save_plot=True, model_name='train_' + experiment_name)
+plot_roc([train_tpr], [train_fpr], save_dir=experiment_save_dir, save_plot=True, model_name='train_' + experiment_name)
 
 ## Model feature analysis
 #### Model confusion matrix
