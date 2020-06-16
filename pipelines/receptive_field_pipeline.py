@@ -19,7 +19,7 @@ data_dir = '/media/miplab-nas2/Data/klug/geneva_stroke_dataset/working_data/with
 save_dir = '/home/klug/output/bnd/feature_eval'
 data_set_name = 'data_set.npz'
 
-experiment_name = 'masked_rf_base'
+experiment_name = 'masked_rf_base_w7'
 
 n_subjects = 113
 n_threads = 50
@@ -65,11 +65,12 @@ start = time.time()
 
 # Batch decomposition to spare memory
 X_features = []
-for batch_offset in tqdm(range(0, X.shape[0], batch_size)):
+masked_y = []
+for batch_offset in tqdm(range(0, X.shape[0], batch_size)): # decompose along subject dimension
     X_batch = X[batch_offset:batch_offset+batch_size]
     mask_batch = mask[batch_offset:batch_offset+batch_size]
     # Note that padding should be same so that output images always have the same size
-    masked_subimage_transformer = MaskedRollingSubImageTransformer(mask=mask, width_list=width_list, padding='same')
+    masked_subimage_transformer = MaskedRollingSubImageTransformer(mask=mask_batch, width_list=width_list, padding='same')
     batch_masked_subimages = masked_subimage_transformer.fit_transform(X_batch)
     # flatten along subimage dimensions to obtain (n_samples, n_widths, n_voxels, n_subimage_voxels)
     batch_flat_masked_subimages = [[batch_masked_subimages[subj_idx][width_idx]
@@ -78,11 +79,12 @@ for batch_offset in tqdm(range(0, X.shape[0], batch_size)):
     # join along image widths to obtain (n_samples, n_voxels, n_subimage_voxels_for_all_widths)
     batch_flat_masked_subimages = [np.concatenate(batch_flat_masked_subimages[subj_idx], axis=-1) for subj_idx in range(len(X_batch))]
     X_features = X_features + batch_flat_masked_subimages
+    # mask on ground truth
+    batch_y = y[batch_offset:batch_offset+batch_size]
+    masked_batch_y = [batch_y[subj_idx][mask_batch[subj_idx]] for subj_idx in range(mask_batch.shape[0])]
+    masked_y = masked_y + masked_batch_y
 
 n_features = X_features[0][0].shape[-1]
-
-# mask on ground truth
-masked_y = [y[subj_idx][mask[subj_idx]] for subj_idx in range(n_subjects)]
 
 end = time.time()
 feature_creation_timing = end - start

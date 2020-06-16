@@ -113,8 +113,6 @@ class MaskedRollingSubImageTransformer(BaseEstimator, TransformerMixin):
             Transformed collection of images. Each entry along axis 0 is a
             point cloud in a `n_dimensions` dimensional space.
         """
-
-        n_widths = len(self.width_list)
         n_subjects = X.shape[0]
 
         ## Subimage creation
