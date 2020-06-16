@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import confusion_matrix
+from sklearn.preprocessing import StandardScaler
 from analysis_tools.metrics.plot_ROC import plot_roc
 from analysis_tools.metrics.metrics import dice, roc_auc
 from visual_tools.dataset_visualization import visualize_dataset
@@ -20,7 +21,7 @@ data_dir = '/media/miplab-nas2/Data/klug/geneva_stroke_dataset/working_data/with
 save_dir = '/home/klug/output/bnd/feature_eval'
 data_set_name = 'data_set.npz'
 
-experiment_name = 'masked_rf_transfo_w7'
+experiment_name = 'masked_rf_scaled_transfo_w7'
 
 n_subjects = 113
 n_threads = 50
@@ -59,6 +60,11 @@ vmin = 0
 vmax = 500
 X[X < vmin] = vmin
 X[X > vmax] = vmax
+
+original_shape = X.shape
+flatX = X.reshape(-1, X.shape[-1])
+scaler = StandardScaler(copy=False)
+X = scaler.fit_transform(flatX).reshape(original_shape)
 
 ## Feature Creation
 n_widths = len(width_list)
