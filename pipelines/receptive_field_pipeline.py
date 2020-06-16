@@ -13,13 +13,14 @@ from analysis_tools.metrics.plot_ROC import plot_roc
 from analysis_tools.metrics.metrics import dice, roc_auc
 from visual_tools.dataset_visualization import visualize_dataset
 from analysis_tools.utils.masked_rolling_subimage_transformer import MaskedRollingSubImageTransformer
+from analysis_tools.utils.receptive_field_transformers import MaskedReceptiveFieldTransformer
 
 ## Import data
 data_dir = '/media/miplab-nas2/Data/klug/geneva_stroke_dataset/working_data/withAngio_all_2016_2017'
 save_dir = '/home/klug/output/bnd/feature_eval'
 data_set_name = 'data_set.npz'
 
-experiment_name = 'masked_rf_base_w7'
+experiment_name = 'masked_rf_transfo_w7'
 
 n_subjects = 113
 n_threads = 50
@@ -70,8 +71,10 @@ for batch_offset in tqdm(range(0, X.shape[0], batch_size)): # decompose along su
     X_batch = X[batch_offset:batch_offset+batch_size]
     mask_batch = mask[batch_offset:batch_offset+batch_size]
     # Note that padding should be same so that output images always have the same size
-    masked_subimage_transformer = MaskedRollingSubImageTransformer(mask=mask_batch, width_list=width_list, padding='same')
-    batch_masked_subimages = masked_subimage_transformer.fit_transform(X_batch)
+    # masked_subimage_transformer = MaskedRollingSubImageTransformer(mask=mask_batch, width_list=width_list, padding='same')
+    # batch_masked_subimages = masked_subimage_transformer.fit_transform(X_batch)
+    transformer = MaskedReceptiveFieldTransformer(width_list = width_list, mask=mask_batch)
+    batch_masked_subimages = transformer.fit_transform(X_batch)
     # flatten along subimage dimensions to obtain (n_samples, n_widths, n_voxels, n_subimage_voxels)
     batch_flat_masked_subimages = [[batch_masked_subimages[subj_idx][width_idx]
                                         .reshape(batch_masked_subimages[subj_idx][width_idx].shape[0], -1)
