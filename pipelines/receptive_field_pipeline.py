@@ -13,6 +13,7 @@ from sklearn.preprocessing import StandardScaler
 from analysis_tools.metrics.plot_ROC import plot_roc
 from analysis_tools.metrics.metrics import dice, roc_auc
 from visual_tools.dataset_visualization import visualize_dataset
+from analysis_tools.utils.utils import get_undersample_selector_array
 from analysis_tools.utils.masked_rolling_subimage_transformer import MaskedRollingSubImageTransformer
 from analysis_tools.utils.receptive_field_transformers import MaskedReceptiveFieldTransformer
 
@@ -21,7 +22,7 @@ data_dir = '/media/miplab-nas2/Data/klug/geneva_stroke_dataset/working_data/with
 save_dir = '/home/klug/output/bnd/feature_eval'
 data_set_name = 'data_set.npz'
 
-experiment_name = 'masked_rf_scaled_transfo_w7'
+experiment_name = 'masked_rf_undersampled_transfo_w7'
 
 n_subjects = 113
 n_threads = 50
@@ -108,6 +109,10 @@ X_train, X_test, y_train, y_test, mask_train, mask_test = train_test_split(X_fea
 n_train, n_test = len(X_train), len(X_test)
 X_train, y_train = np.concatenate(X_train), np.concatenate(y_train)
 X_test, y_test = np.concatenate(X_test), np.concatenate(y_test)
+
+# Undersample training data
+balancing_selector = get_undersample_selector_array(y_train)
+X_train, y_train = X_train[balancing_selector], y_train[balancing_selector]
 
 ## save data
 pickle.dump(X_train, open(os.path.join(pickle_dir, 'X_train.p'), 'wb'))
