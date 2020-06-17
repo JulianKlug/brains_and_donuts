@@ -15,15 +15,16 @@ from sklearn.metrics import confusion_matrix
 from pgtda.images import RollingSubImageTransformer, make_image_union
 from analysis_tools.metrics.plot_ROC import plot_roc
 from analysis_tools.metrics.metrics import dice, roc_auc
+from analysis_tools.utils.utils import get_undersample_selector_array
 from visual_tools.dataset_visualization import visualize_dataset
 
 ## Import data
 data_dir = '/media/miplab-nas2/Data/klug/geneva_stroke_dataset/working_data/withAngio_all_2016_2017'
 save_dir = '/home/klug/output/bnd/feature_eval'
 data_set_name = 'data_set.npz'
-experiment_name = 'capped_data_CP_With_PE_WA_NP'
+experiment_name = 'undersampled_data'
 
-n_images = 30
+n_images = 113
 n_threads = 50
 subsampling_factor = 2
 batch_size = 10
@@ -61,7 +62,7 @@ X[X > vmax] = vmax
 # Todo to reevaluate relevance of std normalisation
 
 ## Feature Creation
-width_list = [[7, 7, 7], [9, 9, 9], [11, 11, 11], [13, 13, 13]]
+width_list = [[7, 7, 7], [9, 9, 9]]
 # n_widths = len(width_list) TODO verify sklearn jobs
 n_widths = 1
 start = time.time()
@@ -89,7 +90,7 @@ for batch_offset in tqdm(range(0, X.shape[0], batch_size)):
 
 end = time.time()
 feature_creation_timing = end - start
-print(f'Features ready after {feature_creation_timing}s')
+print(f'Features ready after {feature_creation_timing} s')
 
 ## Feature Classification
 #### Create classifier
@@ -104,6 +105,10 @@ y_flat = y.reshape(n_images, -1)
 X_train, X_test, y_train, y_test = train_test_split(X_flat, y_flat, test_size=0.3, random_state=42)
 X_train, y_train = X_train.reshape(-1, n_features), y_train.reshape(-1)
 X_test, y_test = X_test.reshape(-1, n_features), y_test.reshape(-1)
+
+# Undersample training data
+balancing_selector = get_undersample_selector_array(y_train)
+X_train, y_train = X_train[balancing_selector], y_train[balancing_selector]
 
 ## save data
 pickle.dump(X_train, open(os.path.join(pickle_dir, 'X_train.p'), 'wb'))
@@ -158,9 +163,9 @@ with open(os.path.join(experiment_save_dir, 'logs.txt'), "a") as log_file:
 
 # %%
 test_fpr, test_tpr, roc_thresholds = test_roc_curve_details
-plot_roc([test_tpr], [test_fpr], experiment_save_dir=experiment_save_dir, save_plot=True, model_name='test_' + experiment_name)
+plot_roc([test_tpr], [test_fpr], save_dir=experiment_save_dir, save_plot=True, model_name='test_' + experiment_name)
 train_fpr, train_tpr, roc_thresholds = train_roc_curve_details
-plot_roc([train_tpr], [train_fpr], experiment_save_dir=experiment_save_dir, save_plot=True, model_name='train_' + experiment_name)
+plot_roc([train_tpr], [train_fpr], save_dir=experiment_save_dir, save_plot=True, model_name='train_' + experiment_name)
 
 ## Model feature analysis
 #### Model confusion matrix

@@ -2,7 +2,7 @@ import numpy as np
 
 def get_undersample_selector_array(y, mask = None):
     """
-    Return boolean array with true for indeces fitting a undersampled balance
+    Return boolean array with true for indices fitting a undersampled balance
     Useful for multidimensional arrays
 
     Args:
@@ -10,7 +10,7 @@ def get_undersample_selector_array(y, mask = None):
         mask : mask representing the areas where negative samples of y can be taken from
 
     Returns:
-        selector : boolean with true indeces retained after random undersapling
+        selector : boolean with true indices retained after random undersampling
     """
     flat_labels = np.squeeze(y.reshape(-1, 1))
     flat_mask = None
@@ -26,15 +26,15 @@ def get_undersample_selector_array(y, mask = None):
 
 def index_undersample_balance(y, mask = None):
     """
-    Find indeces fitting a undersampled balance
+    Find indices fitting a undersampled balance
 
     Args:
         y: dependent variables of data in a form of an np array (0,1 where 1 is underrepresented)
         mask : mask representing the areas where negative samples of y can be taken from
 
     Returns:
-        undersampled_indices : indeces retained after random undersapling
-        unselected_indices : indeces rejected after random undersampling
+        undersampled_indices : indices retained after random undersampling
+        unselected_indices : ind9ces rejected after random undersampling
     """
     print('Undersampling Ratio 1:1')
     n_pos = np.sum(y)
