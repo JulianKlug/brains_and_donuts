@@ -17,14 +17,15 @@ from analysis_tools.metrics.plot_ROC import plot_roc
 from analysis_tools.metrics.metrics import dice, roc_auc
 from analysis_tools.utils.utils import get_undersample_selector_array
 from visual_tools.dataset_visualization import visualize_dataset
+from analysis_tools.utils.masked_rolling_subimage_transformer import MaskedRollingSubImageTransformer
 
 ## Import data
 data_dir = '/media/miplab-nas2/Data/klug/geneva_stroke_dataset/working_data/withAngio_all_2016_2017'
 save_dir = '/home/klug/output/bnd/feature_eval'
 data_set_name = 'data_set.npz'
-experiment_name = 'undersampled_data'
+experiment_name = 'masked_undersampled_data'
 
-n_images = 113
+n_subjects = 50
 n_threads = 50
 subsampling_factor = 2
 batch_size = 10
@@ -49,8 +50,10 @@ clinical_inputs, ct_inputs, ct_lesion_GT, mri_inputs, mri_lesion_GT, brain_masks
 ct_inputs = ct_inputs.reshape((*ct_inputs.shape[:-1]))
 
 # Apply brain masks
-X = (ct_inputs[:n_images] * brain_masks[:n_images])[range(n_images), ::subsampling_factor, ::subsampling_factor, ::subsampling_factor]
-y = (ct_lesion_GT[:n_images] * brain_masks[:n_images])[range(n_images), ::subsampling_factor, ::subsampling_factor, ::subsampling_factor]
+X = (ct_inputs[:n_subjects] * brain_masks[:n_subjects])[range(n_subjects), ::subsampling_factor, ::subsampling_factor, ::subsampling_factor]
+y = (ct_lesion_GT[:n_subjects] * brain_masks[:n_subjects])[range(n_subjects), ::subsampling_factor, ::subsampling_factor, ::subsampling_factor]
+mask = brain_masks[:n_subjects][range(n_subjects), ::subsampling_factor, ::subsampling_factor, ::subsampling_factor]
+_, n_x, n_y, n_z = mask.shape
 
 # Normalise data
 # Capping (threshold to 0-500 as values outside this range seem non relevant to the vascular analysis)
@@ -62,9 +65,9 @@ X[X > vmax] = vmax
 # Todo to reevaluate relevance of std normalisation
 
 ## Feature Creation
-width_list = [[7, 7, 7], [9, 9, 9]]
-# n_widths = len(width_list) TODO verify sklearn jobs
-n_widths = 1
+width_list = [[7, 7, 7]]
+n_widths = len(width_list)
+n_widths_for_thread_attribution = 1 # TODO verify sklearn jobs
 start = time.time()
 # Note that padding should be same so that output images always have the same size
 feature_transformers = [
@@ -73,20 +76,37 @@ feature_transformers = [
                             NumberOfPoints(n_jobs=1)
                         ]
 n_subimage_features = len(feature_transformers)
-transformer = make_pipeline(CubicalPersistence(homology_dimensions=(0, 1 ,2), n_jobs=int(n_threads/n_widths)), Filtering(epsilon=np.max(X)-1, below=False), Scaler(),
-                             make_union(*feature_transformers, n_jobs=int((n_threads/n_widths)/n_subimage_features)))
-rsis = make_image_union(*[RollingSubImageTransformer(transformer=transformer, width=width, padding='same')
-                    for width in width_list], n_jobs=None)
+transformer = make_pipeline(
+                CubicalPersistence(homology_dimensions=(0, 1 ,2), n_jobs=int(n_threads/n_widths_for_thread_attribution)),
+                Filtering(epsilon=np.max(X)-1, below=False),
+                Scaler(),
+                make_union(*feature_transformers, n_jobs=int((n_threads/n_widths_for_thread_attribution)/n_subimage_features))
+              )
 
 # Batch decomposition to spare memory
-X_features = None
+X_features = []
+masked_y = []
 for batch_offset in tqdm(range(0, X.shape[0], batch_size)):
-    batch = X[batch_offset:batch_offset+batch_size]
-    batch_features = rsis.fit_transform(batch)
-    if X_features is None:
-        X_features = batch_features
-    else:
-        X_features = np.concatenate((X_features, batch_features), axis=0)
+    X_batch = X[batch_offset:batch_offset+batch_size]
+    mask_batch = mask[batch_offset:batch_offset+batch_size]
+    # apply mask on ground truth
+    batch_y = y[batch_offset:batch_offset + batch_size]
+    masked_batch_y = [batch_y[subj_idx][mask_batch[subj_idx]] for subj_idx in range(mask_batch.shape[0])]
+    masked_y = masked_y + masked_batch_y
+
+    masked_subimage_transformer = MaskedRollingSubImageTransformer(mask=mask_batch, width_list=width_list, padding='same')
+    batch_masked_subimages = masked_subimage_transformer.fit_transform(X_batch)
+
+    for subj_index in range(X_batch.shape[0]):
+        subj_masked_subimages = batch_masked_subimages[subj_index]
+        # For each subimage for each subimage width, the features of interest are extracted.
+        subj_masked_subfeatures_per_width = [transformer.fit_transform(subj_masked_subimages[width_index]) for
+                                             width_index in range(n_widths)]
+        # Features are then concatenated along a subimage-width agnostic feature dimension
+        subj_masked_subfeatures = np.concatenate(subj_masked_subfeatures_per_width, axis=-1)
+        X_features.append(subj_masked_subfeatures)
+
+n_features = X_features[0][0].shape[-1]
 
 end = time.time()
 feature_creation_timing = end - start
@@ -96,15 +116,12 @@ print(f'Features ready after {feature_creation_timing} s')
 #### Create classifier
 start = time.time()
 classifier = RandomForestClassifier(n_estimators=10000, n_jobs=-1)
+
 #### Prepare dataset
-
-n_images, n_x, n_y, n_z, n_features = X_features.shape
-X_flat = X_features.reshape(n_images, -1, n_features)
-y_flat = y.reshape(n_images, -1)
-
-X_train, X_test, y_train, y_test = train_test_split(X_flat, y_flat, test_size=0.3, random_state=42)
-X_train, y_train = X_train.reshape(-1, n_features), y_train.reshape(-1)
-X_test, y_test = X_test.reshape(-1, n_features), y_test.reshape(-1)
+X_train, X_test, y_train, y_test, mask_train, mask_test = train_test_split(X_features, masked_y, mask, test_size=0.3, random_state=42)
+n_train, n_test = len(X_train), len(X_test)
+X_train, y_train = np.concatenate(X_train), np.concatenate(y_train)
+X_test, y_test = np.concatenate(X_test), np.concatenate(y_test)
 
 # Undersample training data
 balancing_selector = get_undersample_selector_array(y_train)
@@ -137,8 +154,6 @@ pickle.dump(train_probas, open(os.path.join(pickle_dir, 'train_probas.p'), 'wb')
 pickle.dump(train_predicted, open(os.path.join(pickle_dir, 'train_predicted.p'), 'wb'))
 
 #### Reconstruct output
-probas_3D = test_probas.reshape(-1, n_x, n_y, n_z, 2)
-predicted_3D = test_predicted.reshape(-1, n_x, n_y, n_z)
 end = time.time()
 feature_classification_and_prediction_time = end - start
 
@@ -172,13 +187,27 @@ plot_roc([train_tpr], [train_fpr], save_dir=experiment_save_dir, save_plot=True,
 confusion = confusion_matrix(y_test, test_predicted)
 plt.imshow(confusion)
 plt.savefig(os.path.join(experiment_save_dir, experiment_name + '_confusion_matrix.png'))
+
 #### Feature correalation
 correlation = np.abs(np.corrcoef(X_train.T))
 plt.imshow(correlation)
 plt.savefig(os.path.join(experiment_save_dir, experiment_name + '_correlation_matrix.png'))
 
+#### Reconstruct output and label
+vxl_index = 0
+background_value = 0
+test_3D_probas = np.full((n_test, n_x, n_y, n_z, test_probas.shape[-1]), background_value, dtype=np.float64) # fill shape with background
+test_3D_y = np.full(mask_test.shape, 0, dtype=np.int)
+for subj_idx in range(n_test):
+    subj_n_vxl = np.sum(mask_test[subj_idx])
+    subj_3d_probas = test_probas[vxl_index : vxl_index + subj_n_vxl]
+    test_3D_probas[subj_idx][mask_test[subj_idx]] = subj_3d_probas
+    subj_3D_y = y_test[vxl_index : vxl_index + subj_n_vxl]
+    test_3D_y[subj_idx][mask_test[subj_idx]] = subj_3D_y
+    vxl_index += subj_n_vxl
+
 ## Plot test outputs and GT
-output_dataset = np.concatenate((probas_3D, y_test.reshape(-1, n_x, n_y, n_z, 1)), axis=-1)
+output_dataset = np.concatenate((test_3D_probas, test_3D_y.reshape(-1, n_x, n_y, n_z, 1)), axis=-1)
 channel_names = ['0', '1', 'GT']
 visualize_dataset(output_dataset, channel_names, experiment_save_dir, subject_ids=None, save_name='output_visualisation')
 
