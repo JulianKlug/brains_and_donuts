@@ -12,7 +12,7 @@ from sklearn.pipeline import Pipeline, make_pipeline, FeatureUnion, make_union
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import confusion_matrix
-from pgtda.images import RollingSubImageTransformer, make_image_union
+from sklearn.base import clone
 from analysis_tools.metrics.plot_ROC import plot_roc
 from analysis_tools.metrics.metrics import dice, roc_auc
 from analysis_tools.utils.utils import get_undersample_selector_array
@@ -25,10 +25,12 @@ save_dir = '/home/klug/output/bnd/feature_eval'
 data_set_name = 'data_set.npz'
 experiment_name = 'masked_undersampled_data'
 
-n_subjects = 50
+
+n_subjects = 3
 n_threads = 50
 subsampling_factor = 2
 batch_size = 10
+compare_with_rf = True
 
 # Create necessary directories to save data
 if not os.path.exists(save_dir):
@@ -65,7 +67,7 @@ X[X > vmax] = vmax
 # Todo to reevaluate relevance of std normalisation
 
 ## Feature Creation
-width_list = [[7, 7, 7]]
+width_list = [[3, 3, 3]]
 n_widths = len(width_list)
 n_widths_for_thread_attribution = 1 # TODO verify sklearn jobs
 start = time.time()
@@ -86,6 +88,7 @@ transformer = make_pipeline(
 # Batch decomposition to spare memory
 X_features = []
 masked_y = []
+masked_subimages = []
 for batch_offset in tqdm(range(0, X.shape[0], batch_size)):
     X_batch = X[batch_offset:batch_offset+batch_size]
     mask_batch = mask[batch_offset:batch_offset+batch_size]
@@ -105,6 +108,15 @@ for batch_offset in tqdm(range(0, X.shape[0], batch_size)):
         # Features are then concatenated along a subimage-width agnostic feature dimension
         subj_masked_subfeatures = np.concatenate(subj_masked_subfeatures_per_width, axis=-1)
         X_features.append(subj_masked_subfeatures)
+    if compare_with_rf:
+        # flatten along subimage dimensions to obtain (n_samples, n_widths, n_voxels, n_subimage_voxels)
+        batch_flat_masked_subimages = [[batch_masked_subimages[subj_idx][width_idx]
+                                            .reshape(batch_masked_subimages[subj_idx][width_idx].shape[0], -1)
+                                        for width_idx in range(n_widths)] for subj_idx in range(len(X_batch))]
+        # join along image widths to obtain (n_samples, n_voxels, n_subimage_voxels_for_all_widths)
+        batch_flat_masked_subimages = [np.concatenate(batch_flat_masked_subimages[subj_idx], axis=-1) for subj_idx in
+                                       range(len(X_batch))]
+        masked_subimages = masked_subimages + batch_flat_masked_subimages
 
 n_features = X_features[0][0].shape[-1]
 
@@ -175,6 +187,21 @@ with open(os.path.join(experiment_save_dir, 'logs.txt'), "a") as log_file:
     log_file.write('Test ROC AUC: %s\n' % test_roc_auc_score)
     log_file.write('Feature Creation timing: %s\n' % feature_creation_timing)
     log_file.write('Feature Classification and Prediction timing: %s\n' % feature_classification_and_prediction_time)
+
+# Get scores by a pure voxel-value based classifier for comparison
+if compare_with_rf:
+    rf_classifier = clone(classifier)
+    masked_subimages_train, masked_subimages_test = train_test_split(masked_subimages, test_size=0.3, random_state=42)
+    masked_subimages_train, masked_subimages_test = np.concatenate(masked_subimages_train)[balancing_selector], np.concatenate(masked_subimages_test)
+    rf_classifier.fit(masked_subimages_train, y_train)
+    rf_test_predicted = rf_classifier.predict(masked_subimages_test)
+    rf_test_dice_score = dice(rf_test_predicted.flatten(), y_test.flatten())
+    rf_test_roc_auc_score, _ = roc_auc(y_test, rf_test_predicted)
+    print('Rf-only test Dice:', rf_test_dice_score)
+    print('Rf-only test ROC AUC:', rf_test_roc_auc_score)
+    with open(os.path.join(experiment_save_dir, 'logs.txt'), "a") as log_file:
+        log_file.write('Rf-Train Dice: %s\n' % rf_test_dice_score)
+        log_file.write('Rf-Train ROC AUC: %s\n' % rf_test_roc_auc_score)
 
 # %%
 test_fpr, test_tpr, roc_thresholds = test_roc_curve_details
