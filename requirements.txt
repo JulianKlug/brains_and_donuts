@@ -1,0 +1,2 @@
+# git+ssh://git@github.com/gtauzin/pgiotto-tda#egg=pgiotto-tda
+git+git://github.com/MonsieurWave/Geneva-Stroke-Preprocessing#egg=gsprep

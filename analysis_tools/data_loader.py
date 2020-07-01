@@ -1,7 +1,7 @@
 import os
 import nibabel as nib
 import numpy as np
-
+from .utils.utils import brain_to_hemispheres
 
 def load_structured_data(data_dir, filename = 'data_set.npz'):
     params = np.load(os.path.join(data_dir, filename), allow_pickle=True)['params']
@@ -19,6 +19,14 @@ def load_structured_data(data_dir, filename = 'data_set.npz'):
 
     return (clinical_inputs, ct_inputs, ct_lesion_GT, mri_inputs, mri_lesion_GT, brain_masks, ids, params)
 
+def save_dataset(dataset, outdir, out_file_name='data_set.npz'):
+    (clinical_inputs, ct_inputs, ct_lesion_GT, mri_inputs, mri_lesion_GT, brain_masks, ids, params) = dataset
+
+    print('Saving a total of', ct_inputs.shape[0], 'subjects.')
+    np.savez_compressed(os.path.join(outdir, out_file_name),
+                        params=params, ids=ids, clinical_inputs=clinical_inputs,
+                        ct_inputs=ct_inputs, ct_lesion_GT=ct_lesion_GT,
+                        mri_inputs=mri_inputs, mri_lesion_GT=mri_lesion_GT, brain_masks=brain_masks)
 
 def load_and_save_data(image_path, save_dir, save_name):
     image = nib.load(image_path)
@@ -32,6 +40,20 @@ def load_saved_data(data_path):
 
 def treshold(img_data):
     return np.where(img_data > 0, 1, 0)
+
+def brain_volumes_dataset_to_hemispheric_dataset(data_dir, filename = 'data_set.npz', outdir=None, out_file_name=None):
+    dataset = load_structured_data(data_dir, filename)
+    (clinical_inputs, ct_inputs, ct_lesion_GT, mri_inputs, mri_lesion_GT, brain_masks, ids, params) = dataset
+    hemi_ct_inputs, hemi_ct_lesion_GT, hemi_mri_inputs, hemi_mri_lesion_GT, hemi_brain_masks \
+        = [brain_to_hemispheres(x) if np.sum(np.shape(x)) > 0 else x
+           for x in [ct_inputs, ct_lesion_GT, mri_inputs, mri_lesion_GT, brain_masks]]
+    hemi_ids = np.repeat(ids, 2)
+    hemi_dataset = (clinical_inputs, hemi_ct_inputs, hemi_ct_lesion_GT, hemi_mri_inputs, hemi_mri_lesion_GT, hemi_brain_masks, hemi_ids, params)
+    if outdir is None:
+        outdir = data_dir
+    if out_file_name is None:
+        out_file_name = 'hemispheres_' + filename
+    save_dataset(hemi_dataset, outdir, out_file_name)
 
 # # Example
 # image_dir = '/Users/julian/master/brain_and_donuts/data/extract_test/'
