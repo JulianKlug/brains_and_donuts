@@ -1,6 +1,6 @@
 import sys, os, time, pickle
 
-path_bnd = '../'
+path_bnd = '../../'
 sys.path.insert(1, path_bnd)
 import analysis_tools.data_loader as dl
 import numpy as np
