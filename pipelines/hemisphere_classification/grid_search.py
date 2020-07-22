@@ -8,10 +8,8 @@ import pandas as pd
 
 
 ## Import data
-# data_dir = '/media/miplab-nas2/Data/klug/geneva_stroke_dataset/working_data/withAngio_all_2016_2017'
-# save_dir = '/home/klug/output/bnd/feature_eval'
-data_path = '/Users/julian/stroke_research/brain_and_donuts/full_datasets/withAngio_hemispheres_all_2016_2017.npz'
-save_dir = '/Users/julian/temp/bnd_output'
+data_path = '/home/klug/working_data/angio_hemispheres/withAngio_hemispheres_all_2016_2017.npz'
+save_dir = '/home/klug/output/bnd/stroke_detection_grid_search'
 result_file = 'grid_search.csv'
 result_path = os.path.join(save_dir, result_file)
 
