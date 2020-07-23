@@ -2,20 +2,18 @@ import sys, os, time, pickle
 
 path_bnd = '../../'
 sys.path.insert(1, path_bnd)
-import analysis_tools.data_loader as dl
 from analysis_tools.utils.utils import invert_image
 import numpy as np
-import matplotlib.pyplot as plt
 from gtda.homology import CubicalPersistence
 from pgtda.diagrams import PersistenceEntropy, Amplitude, Filtering, Scaler, NumberOfPoints
 from sklearn.pipeline import make_pipeline, make_union
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import confusion_matrix, accuracy_score
+from sklearn.metrics import accuracy_score
 
 
 def evaluate_topological_hemisphere_classification(
-        dataset_path, save_dir, experiment_name,
+        X, y, x_mask, save_dir, experiment_name,
         features = ['PersistenceEntropy', 'Amplitude','NumberOfPoints'],
         amplitude_metric = 'wasserstein',
         processing_filter = True, processing_scale = True, processing_scaler_metric = 'bottleneck',
@@ -38,23 +36,17 @@ def evaluate_topological_hemisphere_classification(
         if not os.path.exists(pickle_dir):
             os.mkdir(pickle_dir)
 
-    # Load data
-    data_dir = os.path.dirname(dataset_path)
-    data_set_name = os.path.basename(dataset_path)
-    clinical_inputs, ct_inputs, ct_lesion_GT, mri_inputs, mri_lesion_GT, brain_masks, ids, params = \
-        dl.load_structured_data(data_dir, data_set_name)
-
-    stroke_presence_GT = np.any(ct_lesion_GT, axis=(1,2,3))
+    lesion_presence_GT = np.any(y, axis=(1,2,3))
 
     # Reshape ct_inputs as it has 1 channel
-    ct_inputs = ct_inputs.reshape((*ct_inputs.shape[:-1]))
+    X = X.reshape((*X.shape[:-1]))
 
     if n_subjects is None:
-        n_subjects = ct_inputs.shape[0]
+        n_subjects = X.shape[0]
 
     # Apply brain masks
-    X = (ct_inputs[:n_subjects] * brain_masks[:n_subjects])[range(n_subjects), ::subsampling_factor, ::subsampling_factor, ::subsampling_factor]
-    y = stroke_presence_GT[:n_subjects]
+    X = (X[:n_subjects] * x_mask[:n_subjects])[range(n_subjects), ::subsampling_factor, ::subsampling_factor, ::subsampling_factor]
+    y = lesion_presence_GT[:n_subjects]
 
     # Normalise data
     # Capping (threshold to 0-500 as values outside this range seem non relevant to the vascular analysis)
@@ -74,7 +66,7 @@ def evaluate_topological_hemisphere_classification(
     if 'PersistenceEntropy' in features:
         feature_transformers.append(PersistenceEntropy(n_jobs=1))
     if 'Amplitude' in features:
-        feature_transformers.append(Amplitude(metric=amplitude_metric, metric_params={'p':2}, order=None, n_jobs=1))
+        feature_transformers.append(Amplitude(metric=amplitude_metric, order=None, n_jobs=1))
     if 'NumberOfPoints' in features:
         feature_transformers.append(NumberOfPoints(n_jobs=1))
     n_subimage_features = len(feature_transformers)
@@ -101,7 +93,7 @@ def evaluate_topological_hemisphere_classification(
         print(f'Features ready after {feature_creation_timing} s')
 
     ## Feature Classification
-    #### Create classifier
+    #### Create classifierå
     start = time.time()
     classifier = RandomForestClassifier(n_estimators=10000, n_jobs=-1)
 
