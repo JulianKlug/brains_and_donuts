@@ -84,5 +84,54 @@ Stroke imaging data is extremely unbalanced with a positive to negative voxel sa
 ### Conclusion
 
 - Balancing is necessary for a learning algorithm for this dataset.
-- Balancing speeds up feature creation significantly.  
+- Balancing speeds up feature creation significantly.
+
+## Hemispheric stroke presence classification
+
+|Start Date|End Date  |
+|----------|----------|
+|2020-07-01|2020-07-25|
+
+### Description
+
+Prediction of stroke segmentation is a very difficult task. We have therefore tried to reduce the complexity of this problem to find relevant parameters by creating a hemispheric stroke presence classification task.
+
+To this end, all volumes in the dataset were split into two hemispheres, and models were evaluated on their ability to predict the presence of an infarct on angioCT imaging in the whole hemisphere. 
+
+A grid search was done with a 3-way train, validation, test split and relevant models were identified from their validation score, to then be evaluated on the test set. 
+
+``` python
+params_search_space = {
+    'homology_dimensions': [[0, 1, 2]],
+    'features': [['PersistenceEntropy', 'Amplitude','NumberOfPoints']],
+    'amplitude_metric': ['bottleneck', 'wasserstein', 'landscape', 'betti', 'heat', 'silhouette', 'persistence_image', 'landscape'],
+    'processing_filter': [True, False],
+    'processing_scaler_metric': ['None', 'bottleneck', 'wasserstein', 'landscape', 'betti', 'heat', 'silhouette', 'persistence_image', 'landscape'],
+    'inverse_input': [True, False],
+    'subsampling_factor': [1, 2, 3],
+    'model': ['RandomForestClassifier', 'LogisticRegression']
+}
+```
+
+All features on all homology dimensions were always used for the grid search to reduce search space, as all used models could easily reduce their weights to 0. 
+
+Unfortunately, none of the identified models achieved reasonable results on the test set. 
+
+### Delivrables
+
+- [x] Hemispheric dataset
+- [x] Grid search
+- [x] Data inversion function (f(x): max(X) - X)
+- [x] Grid search results: [LogisticRegression Model](./static/results/hemisphere_classification/lreg_grid_search.csv), [RandomForestClassifier Model](./static/results/hemisphere_classification/tree_grid_search.csv) 
+
+### Models with best validation results
+
+|LogisticRegression Model| RandomForestClassifier Model |
+|----------|----------|
+| Accuracies:  <br> train: 0.65, val: 0.63, test: 0.54 | Accuracies:  <br> train: 1, val: 0.61, test: 0.56|
+
+### Conclusion
+
+- Generating topologic features from the whole hemisphere on angioCT did not yield good results. 
+- Topological features should be searched on a smaller scale (ie. receptive fields)
 

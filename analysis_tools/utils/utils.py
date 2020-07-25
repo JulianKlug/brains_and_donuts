@@ -1,4 +1,5 @@
 import numpy as np
+import uuid, os, datetime, itertools
 
 
 def get_undersample_selector_array(y, mask=None):
@@ -103,3 +104,67 @@ def brain_to_hemispheres(data: np.ndarray, uniform_side: bool = True):
     else:
         hemispheres = np.concatenate((left_side, right_side), axis=0)
         return hemispheres
+
+
+def multiply_along_axis(a, b, axis):
+    # from https://stackoverflow.com/questions/30031828/multiply-numpy-ndarray-with-1d-array-along-a-given-axis
+
+    # Create an array which would be used to reshape 1D array, b to have
+    # singleton dimensions except for the given axis where we would put -1
+    # signifying to use the entire length of elements along that axis
+    dim_array = np.ones((1, a.ndim), int).ravel()
+    dim_array[axis] = -1
+
+    # Reshape b with dim_array and perform elementwise multiplication with
+    # broadcasting along the singleton dimensions for the final output
+    b_reshaped = b.reshape(dim_array)
+    mult_out = a * b_reshaped
+    return mult_out
+
+
+def invert_image(X: np.ndarray):
+    """
+    Invert images such that inverted = (max(X) - X)
+    :param X: (n_subj, x, y, z)
+    :return: inverted_X
+    """
+
+    return multiply_along_axis(np.ones(X.shape), np.max(X, axis=(1, 2, 3)), axis=0) - X
+
+def combiset(a_list):
+    all_combinations = []
+    for r in range(1, len(a_list) + 1):
+        combinations_object = itertools.combinations(a_list, r)
+        combinations_list = list(combinations_object)
+        all_combinations += combinations_list
+    return all_combinations
+
+def get_unique_path(path):
+    i = 1
+    while os.path.exists(path + str(i)):
+        i += 1
+    path += str(i)
+    return path
+
+def make_unique_experiment_name(checkpoints_dir, experiment_name):
+    return get_unique_path(os.path.join(checkpoints_dir, experiment_name)).split('/')[-1]
+
+def create_experiment_name(params, mode='time', save_dir=None):
+        if mode == 'hex':
+            return uuid.uuid4().hex
+        elif mode == 'readable':
+            experiment_name = ''
+            idx = 0
+            for key, value in zip(params.keys(), params.values()):
+                if idx == 0:
+                    experiment_name += key + '-' + str(value)
+                else:
+                    experiment_name += '_' + key + '-' + str(value)
+                idx += 1
+            if save_dir is not None:
+                return make_unique_experiment_name(save_dir, experiment_name)
+            else:
+                return experiment_name
+        elif mode == 'time':
+            time_struct = datetime.datetime.now().timetuple()
+            return f"{time_struct.tm_year}_{time_struct.tm_mon}_{time_struct.tm_mday}_{time_struct.tm_hour}_{time_struct.tm_min}_{time_struct.tm_sec}"
