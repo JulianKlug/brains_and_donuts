@@ -9,6 +9,7 @@ from pgtda.diagrams import PersistenceEntropy, Amplitude, Filtering, Scaler, Num
 from sklearn.pipeline import make_pipeline, make_union
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 
 
@@ -18,7 +19,8 @@ def evaluate_topological_hemisphere_classification(
         amplitude_metric = 'wasserstein',
         processing_filter = True, processing_scale = True, processing_scaler_metric = 'bottleneck',
         homology_dimensions=(0, 1 ,2), inverse_input = True,
-        n_subjects = None, n_threads = 50, subsampling_factor = 2, verbose = True,
+        model='LogisticRegression',
+        n_subjects = None, n_threads = 50, subsampling_factor = 2, split_seed=42, verbose = True,
         save_input_features = False, save_output = False
     ):
 
@@ -95,23 +97,29 @@ def evaluate_topological_hemisphere_classification(
     ## Feature Classification
     #### Create classifierå
     start = time.time()
-    classifier = RandomForestClassifier(n_estimators=10000, n_jobs=-1)
+    if model == 'LogisticRegression':
+        classifier = LogisticRegression(n_jobs=-1)
+    elif model == 'RandomForestClassifier':
+        classifier = RandomForestClassifier(n_estimators=10000, n_jobs=-1)
+    else:
+        raise Exception(f'Model {model} not known')
+
 
     #### Prepare dataset
-    X_train, X_test, y_train, y_test = train_test_split(X_features, y, test_size=0.3, random_state=42)
+    X_train, X_valid, y_train, y_valid = train_test_split(X_features, y, test_size=0.3, random_state=split_seed)
 
     if save_input_features:
         pickle.dump(X_train, open(os.path.join(pickle_dir, 'X_train.p'), 'wb'))
-        pickle.dump(X_test, open(os.path.join(pickle_dir, 'X_test.p'), 'wb'))
+        pickle.dump(X_valid, open(os.path.join(pickle_dir, 'X_valid.p'), 'wb'))
         pickle.dump(y_train, open(os.path.join(pickle_dir, 'y_train.p'), 'wb'))
-        pickle.dump(y_test, open(os.path.join(pickle_dir, 'y_test.p'), 'wb'))
+        pickle.dump(y_valid, open(os.path.join(pickle_dir, 'y_valid.p'), 'wb'))
 
     #### Train classifier
     classifier.fit(X_train, y_train)
 
     #### Apply classifier
-    test_probas = classifier.predict_proba(X_test)
-    test_predicted = classifier.predict(X_test)
+    valid_probas = classifier.predict_proba(X_valid)
+    valid_predicted = classifier.predict(X_valid)
 
     train_probas = classifier.predict_proba(X_train)
     train_predicted = classifier.predict(X_train)
@@ -121,8 +129,8 @@ def evaluate_topological_hemisphere_classification(
         pickle.dump(classifier, open(os.path.join(pickle_dir, 'trained_classifier.p'), 'wb'))
 
         ### save predicted output
-        pickle.dump(test_probas, open(os.path.join(pickle_dir, 'test_probas.p'), 'wb'))
-        pickle.dump(test_predicted, open(os.path.join(pickle_dir, 'test_predicted.p'), 'wb'))
+        pickle.dump(valid_probas, open(os.path.join(pickle_dir, 'valid_probas.p'), 'wb'))
+        pickle.dump(valid_predicted, open(os.path.join(pickle_dir, 'valid_predicted.p'), 'wb'))
 
         pickle.dump(train_probas, open(os.path.join(pickle_dir, 'train_probas.p'), 'wb'))
         pickle.dump(train_predicted, open(os.path.join(pickle_dir, 'train_predicted.p'), 'wb'))
@@ -133,21 +141,21 @@ def evaluate_topological_hemisphere_classification(
 
     ## Model (Features + Classifier) Evaluation
     train_acc = accuracy_score(train_predicted, y_train)
-    test_acc = accuracy_score(test_predicted, y_test)
+    valid_acc = accuracy_score(valid_predicted, y_valid)
 
     if verbose:
         print('Train Accuracy:', train_acc)
-        print('Test Accuracy:', test_acc)
+        print('Test Accuracy:', valid_acc)
 
     with open(os.path.join(experiment_save_dir, 'logs.txt'), "a") as log_file:
         log_file.write('Train Accuracy: %s\n' % train_acc)
-        log_file.write('Test Accuracy: %s\n' % test_acc)
+        log_file.write('Test Accuracy: %s\n' % valid_acc)
         log_file.write('Feature Creation timing: %s\n' % feature_creation_timing)
         log_file.write('Feature Classification and Prediction timing: %s\n' % feature_classification_and_prediction_time)
 
     ## Model feature analysis
     #### Model confusion matrix
-    # confusion = confusion_matrix(y_test, test_predicted)
+    # confusion = confusion_matrix(y_valid, valid_predicted)
     # plt.imshow(confusion)
     # plt.savefig(os.path.join(experiment_save_dir, experiment_name + '_confusion_matrix.png'))
     #
@@ -156,4 +164,4 @@ def evaluate_topological_hemisphere_classification(
     # plt.imshow(correlation)
     # plt.savefig(os.path.join(experiment_save_dir, experiment_name + '_correlation_matrix.png'))
 
-    return train_acc, test_acc, n_features, feature_creation_timing, feature_classification_and_prediction_time
+    return train_acc, valid_acc, n_features, feature_creation_timing, feature_classification_and_prediction_time
