@@ -74,7 +74,7 @@ def evaluate_topological_3D_patch_classification(
     X_validation, X_train = X_validation.reshape(X_validation.shape[0], -1), X_train.reshape(X_train.shape[0], -1)
 
     # Subimage undersampling
-    if undersampling:
+    if undersampling: # todo probably super slow, probably random undersample is enough
         undersampler = NearMiss(version=3)
         X_train, y_train = undersampler.fit_resample(X_train, y_train)
 
