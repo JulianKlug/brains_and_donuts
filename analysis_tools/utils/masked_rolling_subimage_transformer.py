@@ -124,17 +124,35 @@ class MaskedRollingSubImageTransformer(BaseEstimator, TransformerMixin):
              for width in self.width_list] for subj_index in range(n_subjects)]
 
         ## Masking
-        # Subimages are flattened to create a common voxel-level dimension and the subset defined by their mask is extracted
-        # Result: subject list of width list of arrays : n_subjects, n_widths, n_voxels (differs for every subject), w_x, w_y, w_z
-        X_masked_subimages = []
-        for subj_index in range(n_subjects):
-            subimages_per_width = []
-            for width_index, width in enumerate(self.width_list):
-                flat_subj_subimages = X_subimages_width_list[subj_index][width_index].reshape(-1, width[0], width[1],
-                                                                                              width[2])
-                flat_subj_mask = self.mask[subj_index].reshape(-1)
-                subimages_per_width.append(flat_subj_subimages[flat_subj_mask])
-            X_masked_subimages.append(subimages_per_width)
-        Xt = X_masked_subimages
+
+        if self.padding == 'same':
+            # Subimages are flattened to create a common voxel-level dimension and the subset defined by their mask is extracted
+            # Result: subject list of width list of arrays : n_subjects, n_widths, n_voxels (differs for every subject), w_x, w_y, w_z
+            X_masked_subimages = []
+            for subj_index in range(n_subjects):
+                subimages_per_width = []
+                for width_index, width in enumerate(self.width_list):
+                    flat_subj_subimages = X_subimages_width_list[subj_index][width_index].reshape(-1, width[0], width[1],
+                                                                                                  width[2])
+                    flat_subj_mask = self.mask[subj_index].reshape(-1)
+                    subimages_per_width.append(flat_subj_subimages[flat_subj_mask])
+                X_masked_subimages.append(subimages_per_width)
+            Xt = X_masked_subimages
+        else:
+            X_mask_subimages_width_list = [
+            [RollingSubImageTransformer(width=width, padding=self.padding, stride=self.stride, activated=self.activated,
+                 periodic_dimensions=self.periodic_dimensions, feature=self.feature).fit_transform(self.mask[np.newaxis, subj_index])
+             for width in self.width_list] for subj_index in range(n_subjects)]
+            X_masked_subimages = []
+            for subj_index in range(n_subjects):
+                subimages_per_width = []
+                for width_index, width in enumerate(self.width_list):
+                    flat_subj_subimages = X_subimages_width_list[subj_index][width_index].reshape(-1, width[0], width[1],
+                                                                                                  width[2])
+                    flat_subj_mask_subimages = X_mask_subimages_width_list[subj_index][width_index].reshape(-1, width[0] * width[1] * width[2])
+                    flat_subj_mask_subimages_mask_presence = np.any(flat_subj_mask_subimages, axis=-1)
+                    subimages_per_width.append(flat_subj_subimages[flat_subj_mask_subimages_mask_presence])
+                X_masked_subimages.append(subimages_per_width)
+            Xt = X_masked_subimages
 
         return Xt
