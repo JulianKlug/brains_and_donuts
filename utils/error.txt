@@ -1,0 +1,42 @@
+
+
+
+-----------------------------------------------------------------------------
+                                 ERROR DETAILS
+-----------------------------------------------------------------------------
+- TDA                                             Topological Data Analysis -
+- Release 0.0.11-46 (alpha->beta)                               3 June 2014 -
+- Copyright (c) 2012-2014 by John Harer                                     -
+- All rights reserved                                                       -
+-----------------------------------------------------------------------------
+
+[ERROR: TDA 0.0.11-46 (alpha->beta), 3/4/20 10:14:16 PM]
+[Input-related error] Details: The sparse matrix input relies on the vertex indices to start at close values, which we 'correct' internally to start at 0. The values you provide are larger than 999, which we refuse to handle. Sorry -- You will need to fix this before using TDA.
+
+(Alert: default applied.) Default value ('bin/config') applied to 'settingsDirectory' parameter.
+
+-----------------------------------------------------------------------------
+                           End of error notification
+-----------------------------------------------------------------------------
+
+
+
+
+-----------------------------------------------------------------------------
+                                 ERROR DETAILS
+-----------------------------------------------------------------------------
+- TDA                                             Topological Data Analysis -
+- Release 0.0.11-46 (alpha->beta)                               3 June 2014 -
+- Copyright (c) 2012-2014 by John Harer                                     -
+- All rights reserved                                                       -
+-----------------------------------------------------------------------------
+
+[ERROR: TDA 0.0.11-46 (alpha->beta), 3/4/20 10:16:24 PM]
+[Input-related error] Details: The sparse matrix input relies on the vertex indices to start at close values, which we 'correct' internally to start at 0. The values you provide are larger than 999, which we refuse to handle. Sorry -- You will need to fix this before using TDA.
+
+(Alert: default applied.) Default value ('bin/config') applied to 'settingsDirectory' parameter.
+
+-----------------------------------------------------------------------------
+                           End of error notification
+-----------------------------------------------------------------------------
+
